@@ -1,0 +1,45 @@
+
+
+calicoctl patch felixConfiguration default  --patch '{"spec":{"prometheusMetricsEnabled": true}}'
+
+
+        ports:
+        - containerPort: 9091
+          name: http-metrics
+          protocol: TCP
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: felix-metrics-svc
+  namespace: calico-system
+spec:
+  clusterIP: None
+  selector:
+    k8s-app: calico-node
+  ports:
+  - port: 9091
+    targetPort: 9091
+---
+    - job_name: 'felix_metrics'
+      scrape_interval: 5s
+      scheme: http
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        regex: felix-metrics-svc
+        replacement: $1
+        action: keep
+---
+    - job_name: 'kube_controllers_metrics'
+      scrape_interval: 5s
+      scheme: http
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        regex: calico-kube-controllers-metrics
+        replacement: $1
+        action: keep
